@@ -495,24 +495,30 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 
 // SPA fallback: serve index.html for unknown frontend routes
 app.get('*', (req, res) => {
-  // Do not override API, uploads or admin routes
-  if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/admin') || req.path.startsWith('/image')) {
+  // Allow Railway / browser root checks
+  if (req.path === '/' || req.path === '/favicon.ico') {
+    return res.status(200).send('OK');
+  }
+
+  if (
+    req.path.startsWith('/api') ||
+    req.path.startsWith('/uploads') ||
+    req.path.startsWith('/admin')
+  ) {
     return res.status(404).json({ error: 'Not found' });
   }
+
   const indexPath = path.join(__dirname, 'index.html');
   if (fs.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
+
   res.status(404).json({ error: 'Not found' });
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`
-╔═════════════════════════════════════════════════════╗
-║  listening on port            ║
-╚═════════════════════════════════════════════════════╝
-  `, PORT);
+ console.log(`Listening on port ${PORT}`);
 });
 
 module.exports = app;
