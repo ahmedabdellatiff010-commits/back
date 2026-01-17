@@ -10,7 +10,7 @@ const fs = require('fs');
 const multer = require('multer');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT);
 
 // Middleware
 app.use(cors());
@@ -510,13 +510,9 @@ app.get('*', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔═════════════════════════════════════════════════════╗
-║   Pharmacy Website + Admin Control Panel - Running  ║
-║   Website: http://localhost:${PORT}                     ║
-║   API Server: http://localhost:${PORT}/api             ║
-║   Admin Dashboard: http://localhost:${PORT}/admin      ║
-║   Uploads: http://localhost:${PORT}/uploads            ║
+║  listening on port            ║
 ╚═════════════════════════════════════════════════════╝
-  `);
+  `, PORT);
 });
 
 module.exports = app;
