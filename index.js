@@ -5,38 +5,37 @@
 
 const express = require('express');
 const cors = require('cors');
+const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 
 const app = express();
-const PORT = Number(process.env.PORT);
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve uploaded files folder from project root /uploads
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-app.use('/uploads', express.static(UPLOADS_DIR, { dotfiles: 'deny', index: false, maxAge: '7d' }));
+app.use('/uploads', express.static(UPLOADS_DIR));
 
-// Serve images folder (hero, categories, etc.) if present
-const IMAGES_DIR = path.join(__dirname, 'image');
-if (fs.existsSync(IMAGES_DIR)) {
-  app.use('/image', express.static(IMAGES_DIR, { dotfiles: 'deny', index: false, maxAge: '7d' }));
-}
 
-// Serve admin dashboard at /admin (static files inside ./admin)
-const ADMIN_DIR = path.join(__dirname, 'admin');
-if (fs.existsSync(ADMIN_DIR)) {
-  app.use('/admin', express.static(ADMIN_DIR, { index: 'index.html' }));
-}
+// Serve images folder (hero, categories, etc.)
+const IMAGES_DIR = path.join(__dirname, '..', 'image');
+app.use('/image', express.static(IMAGES_DIR));
 
-// Serve frontend website from project root (/)
-const FRONTEND_DIR = path.join(__dirname);
-app.use(express.static(FRONTEND_DIR, { index: false }));
+
+// Serve admin dashboard at /admin
+app.use('/admin', express.static(path.join(__dirname, '../admin')));
+
+// Serve frontend website from root (/)
+// Frontend files are in the parent directory (project root)
+const FRONTEND_DIR = path.join(__dirname, '..');
+app.use(express.static(FRONTEND_DIR));
 
 // Multer setup for handling image uploads
 const storage = multer.diskStorage({
@@ -51,7 +50,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Note: explicit /admin route is not necessary when static serving is enabled above
+// Ensure /admin opens index.html
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../admin/index.html'));
+});
 // Data directory
 const DATA_DIR = path.join(__dirname, 'data');
 
@@ -484,8 +486,7 @@ app.get('/api/health', (req, res) => {
 app.post('/api/upload', upload.single('image'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const host = req.get('host');
-    const url = `${req.protocol}://${host}/uploads/${req.file.filename}`;
+    const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
     res.json({ filename: req.file.filename, url });
   } catch (err) {
     console.error('Upload error:', err);
@@ -495,30 +496,25 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 
 // SPA fallback: serve index.html for unknown frontend routes
 app.get('*', (req, res) => {
-  // Allow Railway / browser root checks
-  if (req.path === '/' || req.path === '/favicon.ico') {
-    return res.status(200).send('OK');
-  }
-
-  if (
-    req.path.startsWith('/api') ||
-    req.path.startsWith('/uploads') ||
-    req.path.startsWith('/admin')
-  ) {
-    return res.status(404).json({ error: 'Not found' });
-  }
-
-  const indexPath = path.join(__dirname, 'index.html');
+  const indexPath = path.join(__dirname, '..', 'index.html');
   if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({ error: 'Not found' });
   }
-
-  res.status(404).json({ error: 'Not found' });
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
- console.log(`Listening on port ${PORT}`);
+  console.log(`
+╔═════════════════════════════════════════════════════╗
+║   Pharmacy Website + Admin Control Panel - Running  ║
+║   Website: http://localhost:${PORT}                     ║
+║   API Server: http://localhost:${PORT}/api             ║
+║   Admin Dashboard: http://localhost:${PORT}/admin      ║
+║   Uploads: http://localhost:${PORT}/uploads            ║
+╚═════════════════════════════════════════════════════╝
+  `);
 });
 
 module.exports = app;
